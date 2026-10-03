@@ -1,5 +1,6 @@
 import { CARD_DEFAULTS, SETTING_DEFAULTS } from './lib/config.js';
-const defaults = { ...SETTING_DEFAULTS, cards: Object.fromEntries(CARD_DEFAULTS.map((card) => [card.id, card])) };
+import { migratePresets, PRESET_VERSION } from './lib/preferences.js';
+const defaults = { ...SETTING_DEFAULTS, presetVersion: PRESET_VERSION, cards: Object.fromEntries(CARD_DEFAULTS.map((card) => [card.id, card])) };
 const KEY = 'prl-qtc-settings-v3';
 let settings = loadSettings();
 let timer;
@@ -18,6 +19,9 @@ function loadSettings() {
     for (const key of ['electricityUsdKwh', 'usdCny']) result[key] = valid(saved?.[key], result[key]);
     result.usdCny ||= defaults.usdCny;
     for (const card of CARD_DEFAULTS) for (const key of ['prlHash', 'qtcHash', 'prlWatts', 'qtcWatts']) result.cards[card.id][key] = valid(saved?.cards?.[card.id]?.[key], card[key]);
+    result.presetVersion = saved?.presetVersion;
+    migratePresets(result);
+    try { localStorage.setItem(KEY, JSON.stringify(result)); } catch { /* settings still work for this visit */ }
     return result;
   } catch { return structuredClone(defaults); }
 }
@@ -53,7 +57,7 @@ function renderCards(data) {
     const pNet = p.current?.netUsdDay, qNet = q.current?.netUsdDay;
     const winner = pNet == null || qNet == null ? '<span class="winner loss">缺少对比数据</span>' : Math.abs(pNet - qNet) < 0.000001 ? '<span class="winner">收益相同</span>' : pNet > qNet ? '<span class="winner prl">PRL 较高</span>' : '<span class="winner">QTC 较高</span>';
     const params = settings.cards[card.id];
-    return `<tr><td><div class="gpu-name">${card.name}</div><div class="gpu-spec"><label>PRL ${numInput(params.prlHash / 1e12, `${card.name} PRL算力`)} TH/s · ${numInput(params.prlWatts, `${card.name} PRL功耗`)} W</label><label>QTC ${numInput(params.qtcHash / 1e6, `${card.name} QTC算力`)} MH/s · ${numInput(params.qtcWatts, `${card.name} QTC功耗`)} W</label></div></td><td>${profitCell(p.current, 'prl', false)}</td><td>${profitCell(p.average.sampleCount ? p.average : null, 'prl', true)}<span class="profit-sub">${coverageText(p.average)}</span></td><td>${profitCell(q.current, 'qtc', false)}</td><td>${profitCell(q.average.sampleCount ? q.average : null, 'qtc', true)}<span class="profit-sub">${coverageText(q.average)}</span></td><td>${winner}</td></tr>`;
+    return `<tr><td><div class="gpu-name">${card.name}</div>${card.prlNote ? `<div class="profit-sub">${card.prlNote}</div>` : ''}<div class="gpu-spec"><label>PRL ${numInput(params.prlHash / 1e12, `${card.name} PRL算力`)} TH/s · ${numInput(params.prlWatts, `${card.name} PRL功耗`)} W</label><label>QTC ${numInput(params.qtcHash / 1e6, `${card.name} QTC算力`)} MH/s · ${numInput(params.qtcWatts, `${card.name} QTC功耗`)} W</label></div></td><td>${profitCell(p.current, 'prl', false)}</td><td>${profitCell(p.average.sampleCount ? p.average : null, 'prl', true)}<span class="profit-sub">${coverageText(p.average)}</span></td><td>${profitCell(q.current, 'qtc', false)}</td><td>${profitCell(q.average.sampleCount ? q.average : null, 'qtc', true)}<span class="profit-sub">${coverageText(q.average)}</span></td><td>${winner}</td></tr>`;
   }).join('');
   $('cards').innerHTML = rows || '<tr><td colspan="6" class="empty">等待第一笔成功采集。请完成定时采集部署后稍等几分钟。</td></tr>';
   document.querySelectorAll('#cards tr').forEach((row, index) => {

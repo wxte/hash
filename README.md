@@ -89,3 +89,19 @@ Vercel Hobby 原生 Cron 不支持每 10 分钟。因此本版本用 GitHub Acti
 安装 Node.js 24 和 npm。执行 `npm ci`，复制 `.env.example` 为 `.env.local` 并填环境变量；执行 `npm test` 验证积分、窗口边界、断档、同一时刻价格/产出的配对、无效记录和重复采集等逻辑。`npm run dev` 在 http://127.0.0.1:3000 启动本地页面与接口预览，普通静态预览不会运行 `/api`。
 
 接口：`GET /api/stats` 读取并计算；`GET /api/collect` 在服务器获取行情；`POST /api/collect` 接受定时任务提供的有效快照。两者都必须带 `Authorization: Bearer <CRON_SECRET>`。
+
+## PRL 默认参数依据（2026-10-03 修正）
+
+| 显卡 | PRL TH/s | 参考功耗 W | 参数依据与条件 |
+| --- | ---: | ---: | --- |
+| CMP 30HX | 1 | 75 | Kryptex 列示约 1 TH/s；功耗暂作参考预设，按实测填写。未发现 RGminer 解锁名单支持 30HX。 |
+| CMP 40HX | 40 | 150 | RGminer 早期发布表，解锁及相应驱动/矿工条件；不是未解锁保证值。 |
+| CMP 50HX | 64.87 | 210 | RGminer 早期发布表，解锁及相应驱动/矿工条件；采用保守预设。 |
+| RTX 3060 | 42.05 | 99 | Hashrate.no SRBMiner 2026-08-24，Samsung 12GB，1560 MHz 核心、5001 MHz 显存。 |
+| RTX 3060 Ti | 55 | 140 | Vminer 矿池样本表的 SRBMiner 3.6.8 参考值；具体显存/设置会变化。 |
+| RTX 4060 | 57 | 110 | 保留原参考预设。 |
+| RTX 4060 Ti | 70 | 145 | 保留原参考预设。 |
+
+资料：[30HX](https://www.kryptex.com/en/hardware/nvidia-cmp-30hx)、[RGminer 发布记录](https://github.com/Printscan/rgminer/releases)、[CMP 解锁说明](https://github.com/Printscan/rgminer/releases/tag/v1.0.2)、[3060](https://www.hashrate.no/gpus/3060/PRL)、[3060 Ti 矿池样本](https://www.vminers.com/en/gpu-hashrate/)。新版本矿工的优化/超频数据可能更高，但不能当作所有矿机均能达到的算力。
+
+浏览器旧缓存中仍等于旧默认的 PRL 算力和功耗会自动更新；其他自定义数值、电价、QTC 参数保持。某个自定义值恰好等于旧默认时无法区分，也会迁移，请按实测再填写。

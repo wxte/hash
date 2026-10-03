@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import stats from '../api/stats.js';
 import collect from '../api/collect.js';
-const files = new Map([['/','index.html'],['/index.html','index.html'],['/app.js','app.js'],['/style.css','style.css'],['/lib/config.js','lib/config.js']]);
+const files = new Map([['/','index.html'],['/index.html','index.html'],['/app.js','app.js'],['/style.css','style.css'],['/lib/config.js','lib/config.js'],['/lib/preferences.js','lib/preferences.js']]);
 const root = new URL('../', import.meta.url);
 createServer(async (req,res) => {
   res.status = (code) => {res.statusCode=code;return res;};
