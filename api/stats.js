@@ -1,6 +1,7 @@
+import { resolveFx } from '../lib/fx.js';
 import { readHistory } from '../lib/storage.js';
 import { summarize, MAX_GAP } from '../lib/metrics.js';
-import { CARD_DEFAULTS as cards, SETTING_DEFAULTS as defaults } from '../lib/config.js';
+import { CARD_DEFAULTS as cards, SETTING_DEFAULTS as defaults, PRODUCTION_FACTOR } from '../lib/config.js';
 import { decodeSnapshot } from '../lib/snapshot.js';
 
 const n = (v, fallback, max = Number.MAX_VALUE) => v != null && v !== '' && Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= max ? Number(v) : fallback;
@@ -8,11 +9,9 @@ const n = (v, fallback, max = Number.MAX_VALUE) => v != null && v !== '' && Numb
 export default async function handler(req, res) {
   try {
     const settings = {
-      electricityUsdKwh: n(req.query?.electricityUsdKwh, defaults.electricityUsdKwh),
-      usdCny: n(req.query?.usdCny, defaults.usdCny) || defaults.usdCny,
+      electricityCnyKwh: n(req.query?.electricityCnyKwh, defaults.electricityCnyKwh),
       prlPoolFeePct: defaults.prlPoolFeePct,
       qtcPoolFeePct: defaults.qtcPoolFeePct,
-      minerFeePct: defaults.minerFeePct,
     };
     let cardOverrides = {};
     try { cardOverrides = JSON.parse(req.query?.cards ?? '{}'); } catch { cardOverrides = {}; }
@@ -29,6 +28,8 @@ export default async function handler(req, res) {
     });
     const now = Date.now();
     const history = await readHistory();
+    const fx = await resolveFx(history.fx, now);
+    const rate = fx?.usdCny ?? null;
     const collectionStatus = history.collectionStatus;
     const samples = { prl: history.prl.map(decodeSnapshot).filter(Boolean), qtc: history.qtc.map(decodeSnapshot).filter(Boolean) };
     const latest = (rows) => {
@@ -42,23 +43,32 @@ export default async function handler(req, res) {
         const hash = card[coin === 'prl' ? 'prlHash' : 'qtcHash'];
         const fee = coin === 'prl' ? settings.prlPoolFeePct : settings.qtcPoolFeePct;
         const point = current[coin];
-        const currentGross = point ? point.coinPerHashDay * hash * point.priceUsd : null;
-        const electricity = card[`${coin}Watts`] / 1000 * 24 * settings.electricityUsdKwh;
-        const currentNet = currentGross == null ? null : currentGross * (1 - fee / 100) * (1 - settings.minerFeePct / 100) - electricity;
-        const perCardSamples = samples[coin].map((s) => ({ ts: s.ts, grossUsdDay: s.coinPerHashDay * hash * s.priceUsd, netUsdDay: s.coinPerHashDay * hash * s.priceUsd * (1 - fee / 100) * (1 - settings.minerFeePct / 100) - electricity }));
-        const average = summarize(perCardSamples, now);
+        const electricity = card[`${coin}Watts`] / 1000 * 24 * settings.electricityCnyKwh;
+        const grossUsd = (s) => s.coinPerHashDay * hash * PRODUCTION_FACTOR * s.priceUsd;
+        // Integrate matched price/yield snapshots first, then convert at the latest FX.
+        const averageUsd = summarize(samples[coin].map((s) => ({ ts: s.ts, grossUsdDay: grossUsd(s), netUsdDay: grossUsd(s) * (1 - fee / 100) })), now);
+        const { grossUsdDay, netUsdDay, ...coverage } = averageUsd;
+        const average = { ...coverage,
+          grossCnyDay: rate && averageUsd.grossUsdDay != null ? averageUsd.grossUsdDay * rate : null,
+          netCnyDay: rate && averageUsd.netUsdDay != null ? averageUsd.netUsdDay * rate - electricity : null,
+        };
         coins[coin] = {
-          current: point ? { priceUsd: point.priceUsd, coinPerHashDay: point.coinPerHashDay, coinDay: point.coinPerHashDay * hash, grossUsdDay: currentGross, netUsdDay: currentNet, electricityUsdDay: electricity, observedAt: point.ts } : null,
-          average,
-          sampleCount: average.sampleCount,
-          coverageHours: average.coverageHours,
+          current: point ? {
+            priceCny: rate ? point.priceUsd * rate : null,
+            coinPerHashDay: point.coinPerHashDay * PRODUCTION_FACTOR,
+            coinDay: point.coinPerHashDay * hash * PRODUCTION_FACTOR,
+            grossCnyDay: rate ? grossUsd(point) * rate : null,
+            netCnyDay: rate ? grossUsd(point) * rate * (1 - fee / 100) - electricity : null,
+            electricityCnyDay: electricity, observedAt: point.ts,
+          } : null,
+          average, sampleCount: average.sampleCount, coverageHours: average.coverageHours,
         };
       }
       return { ...card, coins };
     });
     const updatedAt = Math.max(...Object.values(samples).flat().map((s) => s.ts), 0) || null;
     const sources = Object.fromEntries(['prl', 'qtc'].map((coin) => [coin, current[coin] ? { priceSource: current[coin].priceSource, source: current[coin].source, sourceName: current[coin].sourceName || (coin === 'prl' ? 'PearlSonar' : 'QTCScan') } : null]));
-    return res.setHeader('Cache-Control', 'no-store').status(200).json({ updatedAt, collectionStatus, settings, sources, cards: cardsOut });
+    return res.setHeader('Cache-Control', 'no-store').status(200).json({ updatedAt, collectionStatus, settings, fx, sources, cards: cardsOut });
   } catch (error) {
     return res.status(503).json({ error: error?.message || '读取历史数据失败' });
   }

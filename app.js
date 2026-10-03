@@ -6,8 +6,7 @@ let settings = loadSettings();
 let timer;
 const $ = (id) => document.getElementById(id);
 const fmt = (x, digits = 3) => x == null || !Number.isFinite(x) ? '—' : new Intl.NumberFormat('zh-CN', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(x);
-const usd = (x) => x == null ? '—' : `$${fmt(x, 3)}`;
-const cny = (x) => x == null ? '—' : `¥${fmt(x * settings.usdCny, 2)}`;
+const cny = (x) => x == null ? '—' : `¥${fmt(x, 3)}`;
 const numInput = (value, label) => `<input type="number" min="0" step="any" aria-label="${label}" value="${value}">`;
 const escapeHtml = (value) => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
@@ -16,8 +15,8 @@ function loadSettings() {
     const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
     const result = structuredClone(defaults);
     const valid = (value, fallback, max = Number.MAX_VALUE) => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= max ? value : fallback;
-    for (const key of ['electricityUsdKwh', 'usdCny']) result[key] = valid(saved?.[key], result[key]);
-    result.usdCny ||= defaults.usdCny;
+    result.electricityCnyKwh = valid(saved?.electricityCnyKwh, result.electricityCnyKwh);
+    if (saved?.electricityCnyKwh == null && typeof saved?.electricityUsdKwh === 'number' && Number.isFinite(saved.electricityUsdKwh) && saved.electricityUsdKwh >= 0 && typeof saved?.usdCny === 'number' && Number.isFinite(saved.usdCny) && saved.usdCny > 0) result.electricityCnyKwh = saved.electricityUsdKwh * saved.usdCny;
     for (const card of CARD_DEFAULTS) for (const key of ['prlHash', 'qtcHash', 'prlWatts', 'qtcWatts']) result.cards[card.id][key] = valid(saved?.cards?.[card.id]?.[key], card[key]);
     result.presetVersion = saved?.presetVersion;
     migratePresets(result);
@@ -28,7 +27,7 @@ function loadSettings() {
 function saveSettings() { localStorage.setItem(KEY, JSON.stringify(settings)); }
 function showToast(message) { const toast = $('toast'); toast.textContent = message; toast.classList.add('show'); clearTimeout(timer); timer = setTimeout(() => toast.classList.remove('show'), 2200); }
 function fillSettings() {
-  $('electricity').value = settings.electricityUsdKwh; $('fx').value = settings.usdCny;
+  $('electricity').value = Number(settings.electricityCnyKwh.toFixed(6));
 }
 function ago(ts) { if (!ts) return '暂无样本'; const m = Math.max(0, Math.floor((Date.now() - ts) / 60000)); return m < 1 ? '刚刚' : `${m} 分钟前`; }
 function coverageText(data) {
@@ -44,17 +43,17 @@ function renderSummary(data) {
     const avg = baseline?.average?.sampleCount ? baseline.average : null;
     const source = data.sources[coin];
     const unitOutput = current ? current.coinPerHashDay * (coin === 'prl' ? 1e12 : 1e6) : null;
-    return `<article class="coin-card"><div class="coin-top"><div><div class="coin-title">${title}</div><div class="coin-sub">${source ? escapeHtml(source.sourceName) + ' 全网估算' : '等待数据'}</div></div><div class="coin-price">${current ? usd(current.priceUsd) : '—'}<small>${escapeHtml(source?.priceSource || '等待价格样本')}${current ? ' · ' + ago(current.observedAt) : ''}</small></div></div><div class="unit-output">每 ${coin === 'prl' ? 'TH/s' : 'MH/s'} 日产 <b>${fmt(unitOutput, 7)}</b> ${coin.toUpperCase()}</div><div class="coverage">${avg ? coverageText(avg) : '尚无有效历史样本'}</div></article>`;
+    return `<article class="coin-card"><div class="coin-top"><div><div class="coin-title">${title}</div><div class="coin-sub">${source ? escapeHtml(source.sourceName) + ' 全网估算' : '等待数据'}</div></div><div class="coin-price">${current ? cny(current.priceCny) : '—'}<small>${escapeHtml(source?.priceSource || '等待价格样本')}${current ? ' · ' + ago(current.observedAt) : ''}</small></div></div><div class="unit-output">每 ${coin === 'prl' ? 'TH/s' : 'MH/s'} 折减后日产 <b>${fmt(unitOutput, 7)}</b> ${coin.toUpperCase()}</div><div class="coverage">${avg ? coverageText(avg) : '尚无有效历史样本'}</div></article>`;
     }).join('');
 }
 function profitCell(item, coin, avg) {
   if (!item) return '<span class="bad">数据暂不可用</span>';
-  return `<span class="profit-main ${avg ? 'avg-val' : ''}">毛 ${usd(item.grossUsdDay)} <span class="profit-sub">净 ${usd(item.netUsdDay)} · ${cny(item.netUsdDay)}</span></span>`;
+  return `<span class="profit-main ${avg ? 'avg-val' : ''}">毛 ${cny(item.grossCnyDay)} <span class="profit-sub">净 ${cny(item.netCnyDay)}</span></span>`;
 }
 function renderCards(data) {
   const rows = data.cards.map((card) => {
     const p = card.coins.prl, q = card.coins.qtc;
-    const pNet = p.current?.netUsdDay, qNet = q.current?.netUsdDay;
+    const pNet = p.current?.netCnyDay, qNet = q.current?.netCnyDay;
     const winner = pNet == null || qNet == null ? '<span class="winner loss">缺少对比数据</span>' : Math.abs(pNet - qNet) < 0.000001 ? '<span class="winner">收益相同</span>' : pNet > qNet ? '<span class="winner prl">PRL 较高</span>' : '<span class="winner">QTC 较高</span>';
     const params = settings.cards[card.id];
     return `<tr><td><div class="gpu-name">${card.name}</div>${card.prlNote ? `<div class="profit-sub">${card.prlNote}</div>` : ''}<div class="gpu-spec"><label>PRL ${numInput(params.prlHash / 1e12, `${card.name} PRL算力`)} TH/s · ${numInput(params.prlWatts, `${card.name} PRL功耗`)} W</label><label>QTC ${numInput(params.qtcHash / 1e6, `${card.name} QTC算力`)} MH/s · ${numInput(params.qtcWatts, `${card.name} QTC功耗`)} W</label></div></td><td>${profitCell(p.current, 'prl', false)}</td><td>${profitCell(p.average.sampleCount ? p.average : null, 'prl', true)}<span class="profit-sub">${coverageText(p.average)}</span></td><td>${profitCell(q.current, 'qtc', false)}</td><td>${profitCell(q.average.sampleCount ? q.average : null, 'qtc', true)}<span class="profit-sub">${coverageText(q.average)}</span></td><td>${winner}</td></tr>`;
@@ -71,17 +70,20 @@ function renderCards(data) {
   });
 }
 async function loadData() {
-  const query = new URLSearchParams({ electricityUsdKwh: settings.electricityUsdKwh, usdCny: settings.usdCny, cards: JSON.stringify(settings.cards) });
+  const query = new URLSearchParams({ electricityCnyKwh: settings.electricityCnyKwh, cards: JSON.stringify(settings.cards) });
   $('refresh-label').textContent = '正在更新…'; $('refresh').disabled = true;
   try {
     const response = await fetch(`/api/stats?${query}`, { cache: 'no-store' });
     const data = await response.json(); if (!response.ok) throw new Error(data.error || '读取失败');
     renderSummary(data); renderCards(data);
+    $('fx').textContent = data.fx ? `1 USD = ${fmt(data.fx.usdCny, 4)} 元` : '汇率暂不可用';
+    $('fx-time').textContent = data.fx ? `${data.fx.source}${data.fx.daily ? ' · 每日参考汇率' : ' · 最新市场报价'}${data.fx.stale ? ' · 暂用上次成功值' : ''} · ${new Date(data.fx.asOf).toLocaleString('zh-CN')}` : '等待有效汇率，人民币收益暂不计算';
+    $('fx-attribution').hidden = !data.fx?.daily;
     const errors = data.collectionStatus?.errors || {};
     const recent = !Object.keys(errors).length && data.cards.every((card) => card.coins.prl.current && card.coins.qtc.current);
     $('status-pill').textContent = recent ? '数据正常' : Object.keys(errors).length ? '采集异常' : data.updatedAt ? '采集延迟' : '等待采集'; $('status-pill').className = `status-pill ${recent ? 'good' : ''}`;
     $('updated').textContent = data.updatedAt ? `最近成功采集：${new Date(data.updatedAt).toLocaleString('zh-CN')}` : '尚无成功采集记录';
-    const errorHint = Object.entries(errors).map(([coin, message]) => `${coin.toUpperCase()}：${message}`).join('；');
+    const errorHint = Object.entries({ ...errors, ...(!data.fx ? { fx: '汇率不可用' } : data.fx.stale ? { fx: '汇率采集延迟，沿用上次有效报价' } : {}) }).map(([coin, message]) => `${coin.toUpperCase()}：${message}`).join('；');
     $('refresh-label').textContent = data.updatedAt ? `更新于 ${ago(data.updatedAt)}` : '等待首次采集';
     $('data-notice').hidden = !errorHint; $('data-notice').textContent = errorHint ? `采集异常：${errorHint}。失败样本未计入平均。` : '';
   } catch (error) {
@@ -90,9 +92,7 @@ async function loadData() {
   } finally { $('refresh').disabled = false; }
 }
 fillSettings();
-for (const [id, key] of [['electricity', 'electricityUsdKwh'], ['fx', 'usdCny']]) {
-  $(id).addEventListener('change', () => { const value = Number($(id).value); if (!Number.isFinite(value) || value < 0 || (key === 'usdCny' && value === 0) || (key.endsWith('FeePct') && value > 100)) return showToast('请填写有效数值；费用不超过 100%'); settings[key] = value; saveSettings(); loadData(); });
-}
+$('electricity').addEventListener('change', () => { const value = Number($('electricity').value); if (!Number.isFinite(value) || value < 0) return showToast('请填写有效电价'); settings.electricityCnyKwh = value; saveSettings(); loadData(); });
 $('reset-settings').addEventListener('click', () => { settings = structuredClone(defaults); saveSettings(); fillSettings(); loadData(); showToast('已恢复默认设置'); });
 $('refresh').addEventListener('click', loadData);
 loadData(); setInterval(loadData, 60_000);
