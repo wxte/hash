@@ -15,7 +15,7 @@ function loadSettings() {
     const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
     const result = structuredClone(defaults);
     const valid = (value, fallback, max = Number.MAX_VALUE) => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= max ? value : fallback;
-    for (const key of Object.keys(SETTING_DEFAULTS)) result[key] = valid(saved?.[key], result[key], key.endsWith('FeePct') ? 100 : Number.MAX_VALUE);
+    for (const key of ['electricityUsdKwh', 'usdCny']) result[key] = valid(saved?.[key], result[key]);
     result.usdCny ||= defaults.usdCny;
     for (const card of CARD_DEFAULTS) for (const key of ['prlHash', 'qtcHash', 'prlWatts', 'qtcWatts']) result.cards[card.id][key] = valid(saved?.cards?.[card.id]?.[key], card[key]);
     return result;
@@ -25,7 +25,6 @@ function saveSettings() { localStorage.setItem(KEY, JSON.stringify(settings)); }
 function showToast(message) { const toast = $('toast'); toast.textContent = message; toast.classList.add('show'); clearTimeout(timer); timer = setTimeout(() => toast.classList.remove('show'), 2200); }
 function fillSettings() {
   $('electricity').value = settings.electricityUsdKwh; $('fx').value = settings.usdCny;
-  $('prl-fee').value = settings.prlPoolFeePct; $('qtc-fee').value = settings.qtcPoolFeePct;
 }
 function ago(ts) { if (!ts) return '暂无样本'; const m = Math.max(0, Math.floor((Date.now() - ts) / 60000)); return m < 1 ? '刚刚' : `${m} 分钟前`; }
 function coverageText(data) {
@@ -68,7 +67,7 @@ function renderCards(data) {
   });
 }
 async function loadData() {
-  const query = new URLSearchParams({ electricityUsdKwh: settings.electricityUsdKwh, usdCny: settings.usdCny, prlPoolFeePct: settings.prlPoolFeePct, qtcPoolFeePct: settings.qtcPoolFeePct, minerFeePct: settings.minerFeePct, cards: JSON.stringify(settings.cards) });
+  const query = new URLSearchParams({ electricityUsdKwh: settings.electricityUsdKwh, usdCny: settings.usdCny, cards: JSON.stringify(settings.cards) });
   $('refresh-label').textContent = '正在更新…'; $('refresh').disabled = true;
   try {
     const response = await fetch(`/api/stats?${query}`, { cache: 'no-store' });
@@ -87,7 +86,7 @@ async function loadData() {
   } finally { $('refresh').disabled = false; }
 }
 fillSettings();
-for (const [id, key] of [['electricity', 'electricityUsdKwh'], ['fx', 'usdCny'], ['prl-fee', 'prlPoolFeePct'], ['qtc-fee', 'qtcPoolFeePct']]) {
+for (const [id, key] of [['electricity', 'electricityUsdKwh'], ['fx', 'usdCny']]) {
   $(id).addEventListener('change', () => { const value = Number($(id).value); if (!Number.isFinite(value) || value < 0 || (key === 'usdCny' && value === 0) || (key.endsWith('FeePct') && value > 100)) return showToast('请填写有效数值；费用不超过 100%'); settings[key] = value; saveSettings(); loadData(); });
 }
 $('reset-settings').addEventListener('click', () => { settings = structuredClone(defaults); saveSettings(); fillSettings(); loadData(); showToast('已恢复默认设置'); });

@@ -10,9 +10,9 @@ export default async function handler(req, res) {
     const settings = {
       electricityUsdKwh: n(req.query?.electricityUsdKwh, defaults.electricityUsdKwh),
       usdCny: n(req.query?.usdCny, defaults.usdCny) || defaults.usdCny,
-      prlPoolFeePct: n(req.query?.prlPoolFeePct, defaults.prlPoolFeePct, 100),
-      qtcPoolFeePct: n(req.query?.qtcPoolFeePct, defaults.qtcPoolFeePct, 100),
-      minerFeePct: n(req.query?.minerFeePct, defaults.minerFeePct, 100),
+      prlPoolFeePct: defaults.prlPoolFeePct,
+      qtcPoolFeePct: defaults.qtcPoolFeePct,
+      minerFeePct: defaults.minerFeePct,
     };
     let cardOverrides = {};
     try { cardOverrides = JSON.parse(req.query?.cards ?? '{}'); } catch { cardOverrides = {}; }
