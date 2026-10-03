@@ -57,7 +57,8 @@ export default async function handler(req, res) {
       return { ...card, coins };
     });
     const updatedAt = Math.max(...Object.values(samples).flat().map((s) => s.ts), 0) || null;
-    return res.setHeader('Cache-Control', 'no-store').status(200).json({ updatedAt, collectionStatus, settings, sources: { prl: current.prl ? { priceSource: current.prl.priceSource, source: current.prl.source } : null, qtc: current.qtc ? { priceSource: current.qtc.priceSource, source: current.qtc.source } : null }, cards: cardsOut });
+    const sources = Object.fromEntries(['prl', 'qtc'].map((coin) => [coin, current[coin] ? { priceSource: current[coin].priceSource, source: current[coin].source, sourceName: current[coin].sourceName || (coin === 'prl' ? 'PearlSonar' : 'QTCScan') } : null]));
+    return res.setHeader('Cache-Control', 'no-store').status(200).json({ updatedAt, collectionStatus, settings, sources, cards: cardsOut });
   } catch (error) {
     return res.status(503).json({ error: error?.message || '读取历史数据失败' });
   }

@@ -6,7 +6,7 @@
 
 ## 计算方式
 
-- PRL 单位日产出 = PearlSonar 24h emission ÷ network hashrate。输入算力为 TH/s。
+- PRL 优先 PearlSonar 24h emission ÷ network hashrate。主源不可访问时使用 [Pearlchain 公共 API](https://pearlchain.live/api-docs) 的当前奖励 × 86400 ÷ 近期平均出块秒数 ÷ 全网算力；备用源是近期区块速率推算，可能与实际 24h 发行量存在差异，页面显示实际使用的数据源。输入算力为 TH/s。
 - Quantus（本页沿用 QTC 标签）单位日产出 = QTCScan 24h 区块数 × 当前区块奖励 ÷ 24h 全网算力。输入算力为 MH/s。这是全网估算，不是矿池实际到账。
 - 价格优先 SafeTrade 的 PRL/USDT、QUANTUS/USDT，失败则使用 CoinGecko 的 `pearl-2` / `quantus` 美元价。USDT 报价按 1 USD 换算。CoinGecko 或 QTCScan 超过 30 分钟未更新会跳过，不当作新行情。
 - 每个成功快照保存采集时间、价格、每 H/s 日产出及数据源。默认存储去重到每个 10 分钟时段一条，每币保留最近 26 小时。
@@ -17,7 +17,7 @@
 - 样本数与实际覆盖时长按币分别显示。初次上线需要累积，未满 24h 会标注“积累中”。平均数字表示有效覆盖时段的平均日产收益率，不代表已经实际赚到的金额。
 - 修改算力、电价后，历史平均会按当前设置重新计算。默认算力/功耗是可编辑参考预设；汇率是手动设置值。
 
-采集脚本在 GitHub 运行，避免 PRL 数据站对 Vercel 服务器返回 403；不需要在 Actions 安装 npm 依赖。失败币种不写入历史，工作流会报告失败，便于发现部分数据源异常。
+采集脚本在 GitHub 运行；PRL 主数据站可能对云服务器返回 403，因此配置 Pearlchain 公开 JSON 备用源；不需要在 Actions 安装 npm 依赖。失败币种不写入历史，工作流会报告失败，便于发现部分数据源异常。
 
 ## 存储与后台采集
 
@@ -86,6 +86,6 @@ Vercel Hobby 原生 Cron 不支持每 10 分钟。因此本版本用 GitHub Acti
 
 ## 本地开发与验证
 
-安装 Node.js 24 和 npm。执行 `npm ci`，复制 `.env.example` 为 `.env.local` 并填环境变量；执行 `npm test` 验证积分、窗口边界、断档、同一时刻价格/产出的配对、无效记录和重复采集等逻辑。`npm run dev` 使用 Vercel 本地开发服务，普通静态预览不会运行 `/api`。
+安装 Node.js 24 和 npm。执行 `npm ci`，复制 `.env.example` 为 `.env.local` 并填环境变量；执行 `npm test` 验证积分、窗口边界、断档、同一时刻价格/产出的配对、无效记录和重复采集等逻辑。`npm run dev` 在 http://127.0.0.1:3000 启动本地页面与接口预览，普通静态预览不会运行 `/api`。
 
 接口：`GET /api/stats` 读取并计算；`GET /api/collect` 在服务器获取行情；`POST /api/collect` 接受定时任务提供的有效快照。两者都必须带 `Authorization: Bearer <CRON_SECRET>`。

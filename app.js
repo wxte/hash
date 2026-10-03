@@ -40,7 +40,7 @@ function renderSummary(data) {
     const avg = baseline?.average?.sampleCount ? baseline.average : null;
     const source = data.sources[coin];
     const unitOutput = current ? current.coinPerHashDay * (coin === 'prl' ? 1e12 : 1e6) : null;
-    return `<article class="coin-card"><div class="coin-top"><div><div class="coin-title">${title}</div><div class="coin-sub">${source ? (coin === 'prl' ? 'PearlSonar' : 'QTCScan') + ' 全网估算' : '等待数据'}</div></div><div class="coin-price">${current ? usd(current.priceUsd) : '—'}<small>${source?.priceSource || '等待价格样本'}${current ? ' · ' + ago(current.observedAt) : ''}</small></div></div><div class="unit-output">每 ${coin === 'prl' ? 'TH/s' : 'MH/s'} 日产 <b>${fmt(unitOutput, 7)}</b> ${coin.toUpperCase()}</div><div class="coverage">${avg ? coverageText(avg) : '尚无有效历史样本'}</div></article>`;
+    return `<article class="coin-card"><div class="coin-top"><div><div class="coin-title">${title}</div><div class="coin-sub">${source ? escapeHtml(source.sourceName) + ' 全网估算' : '等待数据'}</div></div><div class="coin-price">${current ? usd(current.priceUsd) : '—'}<small>${escapeHtml(source?.priceSource || '等待价格样本')}${current ? ' · ' + ago(current.observedAt) : ''}</small></div></div><div class="unit-output">每 ${coin === 'prl' ? 'TH/s' : 'MH/s'} 日产 <b>${fmt(unitOutput, 7)}</b> ${coin.toUpperCase()}</div><div class="coverage">${avg ? coverageText(avg) : '尚无有效历史样本'}</div></article>`;
     }).join('');
 }
 function profitCell(item, coin, avg) {
@@ -73,10 +73,10 @@ async function loadData() {
     const response = await fetch(`/api/stats?${query}`, { cache: 'no-store' });
     const data = await response.json(); if (!response.ok) throw new Error(data.error || '读取失败');
     renderSummary(data); renderCards(data);
-    const recent = data.cards.every((card) => card.coins.prl.current && card.coins.qtc.current);
-    $('status-pill').textContent = recent ? '数据正常' : data.updatedAt ? '采集延迟' : '等待采集'; $('status-pill').className = `status-pill ${recent ? 'good' : ''}`;
-    $('updated').textContent = data.updatedAt ? `最近成功采集：${new Date(data.updatedAt).toLocaleString('zh-CN')}` : '尚无成功采集记录';
     const errors = data.collectionStatus?.errors || {};
+    const recent = !Object.keys(errors).length && data.cards.every((card) => card.coins.prl.current && card.coins.qtc.current);
+    $('status-pill').textContent = recent ? '数据正常' : Object.keys(errors).length ? '采集异常' : data.updatedAt ? '采集延迟' : '等待采集'; $('status-pill').className = `status-pill ${recent ? 'good' : ''}`;
+    $('updated').textContent = data.updatedAt ? `最近成功采集：${new Date(data.updatedAt).toLocaleString('zh-CN')}` : '尚无成功采集记录';
     const errorHint = Object.entries(errors).map(([coin, message]) => `${coin.toUpperCase()}：${message}`).join('；');
     $('refresh-label').textContent = data.updatedAt ? `更新于 ${ago(data.updatedAt)}` : '等待首次采集';
     $('data-notice').hidden = !errorHint; $('data-notice').textContent = errorHint ? `采集异常：${errorHint}。失败样本未计入平均。` : '';
