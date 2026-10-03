@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f5f7f4"><title>PRL / Quantus 挖矿收益对比</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar"><a class="brand" href="/"><span class="brand-mark">P</span><span>MINER<span class="brand-light"> / RETURNS</span></span></a><div class="live"><i></i> <span id="refresh-label">正在读取</span><button id="refresh" title="立即刷新">↻</button></div></header>
+    <section class="hero"><div><div class="eyebrow">MINING REVENUE MONITOR <span id="status-pill" class="status-pill">等待数据</span></div><h1>挖 PRL，还是 <em>Quantus？</em></h1><p>对比实时预估和过去 24 小时平均收益，按你自己的算力与电价计算。</p></div><div class="hero-note"><span class="pulse"></span><span>采集间隔约 10 分钟<br><small>服务器持续记录，不依赖网页是否打开</small></span></div></section>
+    <section class="controls panel"><div class="control-head"><div><div class="section-kicker">YOUR ELECTRICITY & FEES</div><h2>计算设置</h2></div><button class="text-button" id="reset-settings">恢复默认</button></div><div class="settings-grid">
+      <label>电价 <span><input id="electricity" type="number" min="0" step="0.001"> <b>USD/kWh</b></span></label>
+      <label>美元汇率 <span><input id="fx" type="number" min="0" step="0.01"> <b>CNY/USD</b></span></label>
+      <label>PRL 矿池费 <span><input id="prl-fee" type="number" min="0" max="100" step="0.1"> <b>%</b></span></label>
+      <label>QTC 矿池/矿工费 <span><input id="qtc-fee" type="number" min="0" max="100" step="0.1"> <b>%</b></span></label>
+    </div></section>
+    <section class="summary-grid" id="coin-summary"></section>
+    <section class="panel table-panel"><div class="table-heading"><div><div class="section-kicker">GPU BY GPU</div><h2>每张卡的预估收益</h2></div><div class="legend"><span><i class="dot now"></i>实时 / 天</span><span><i class="dot avg"></i>24h 平均 / 天</span></div></div>
+      <div class="table-wrap"><table><thead><tr><th>显卡 <small>点击算力和功耗可编辑</small></th><th>PRL 实时 <small>毛收益 / 净收益</small></th><th>PRL 24h 平均 <small>毛收益 / 净收益</small></th><th>QTC 实时 <small>毛收益 / 净收益</small></th><th>QTC 24h 平均 <small>毛收益 / 净收益</small></th><th>当前更高</th></tr></thead><tbody id="cards"></tbody></table></div>
+      <div class="table-foot"><span>算力与功耗为参考预设，请按矿机实测调整。净收益扣费用与显卡电费。</span><span>24h 平均按有效样本覆盖时间加权，缺失区间不补零。</span></div>
+    </section>
+    <footer><span>数据源：PearlSonar · QTCScan · SafeTrade / CoinGecko</span><span id="updated">尚未更新</span></footer>
+  </main>
+  <div id="toast" role="status"></div><script type="module" src="/app.js"></script>
+</body></html>

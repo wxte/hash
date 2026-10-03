@@ -1,0 +1,17 @@
+{
+  "name": "prl-qtc-profit",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.35.6",
+    "@vercel/blob": "^2.8.0"
+  },
+  "devDependencies": {
+    "vercel": "^62.2.0"
+  }
+}
