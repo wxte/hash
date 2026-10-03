@@ -6,6 +6,7 @@ if (url.protocol !== 'https:') throw new Error('SITE_URL 必须是 HTTPS 生产�
 let snapshot;
 try { snapshot = await collectMarket(); }
 catch (error) { snapshot = { ts: Date.now(), errors: { all: error.message } }; }
+console.log(JSON.stringify({ collected: { prl: Boolean(snapshot.prl), qtc: Boolean(snapshot.qtc) }, errors: snapshot.errors }));
 const response = await fetch(url, {
   method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${COLLECT_SECRET}` },
   body: JSON.stringify(snapshot), signal: AbortSignal.timeout(65_000),
