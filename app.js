@@ -43,7 +43,7 @@ function renderSummary(data) {
     const avg = baseline?.average?.sampleCount ? baseline.average : null;
     const source = data.sources[coin];
     const unitOutput = current ? current.coinPerHashDay * (coin === 'prl' ? 1e12 : 1e6) : null;
-    return `<article class="coin-card"><div class="coin-top"><div><div class="coin-title">${title}</div><div class="coin-sub">${source ? escapeHtml(source.sourceName) + ' 全网估算' : '等待数据'}</div></div><div class="coin-price">${current ? cny(current.priceCny) : '—'}<small>${escapeHtml(source?.priceSource || '等待价格样本')}${current ? ' · ' + ago(current.observedAt) : ''}</small></div></div><div class="unit-output">每 ${coin === 'prl' ? 'TH/s' : 'MH/s'} 折减后日产 <b>${fmt(unitOutput, 7)}</b> ${coin.toUpperCase()}</div><div class="coverage">${avg ? coverageText(avg) : '尚无有效历史样本'}</div></article>`;
+    return `<article class="coin-card"><div class="coin-top"><div><div class="coin-title">${title}</div><div class="coin-sub">${source ? escapeHtml(source.sourceName) + ' 全网估算' : '等待数据'}</div></div><div class="coin-price">${current ? '$' + fmt(current.priceUsd, 3) : '—'}<small>USD · ${escapeHtml(source?.priceSource || '等待价格样本')}${current ? ' · ' + ago(current.observedAt) : ''}</small></div></div><div class="unit-output">每 ${coin === 'prl' ? 'TH/s' : 'MH/s'} 折减后日产 <b>${fmt(unitOutput, 7)}</b> ${coin.toUpperCase()}</div><div class="coverage">${avg ? coverageText(avg) : '尚无有效历史样本'}</div></article>`;
     }).join('');
 }
 function profitCell(item, coin, avg) {

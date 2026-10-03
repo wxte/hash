@@ -54,6 +54,7 @@ export default async function handler(req, res) {
         };
         coins[coin] = {
           current: point ? {
+            priceUsd: point.priceUsd,
             priceCny: rate ? point.priceUsd * rate : null,
             coinPerHashDay: point.coinPerHashDay * PRODUCTION_FACTOR,
             coinDay: point.coinPerHashDay * hash * PRODUCTION_FACTOR,
