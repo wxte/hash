@@ -1,3 +1,4 @@
+import { ensureFreshHistory } from '../lib/refresh.js';
 import { resolveFx } from '../lib/fx.js';
 import { readHistory } from '../lib/storage.js';
 import { summarize, MAX_GAP } from '../lib/metrics.js';
@@ -26,8 +27,8 @@ export default async function handler(req, res) {
         qtcWatts: n(override.qtcWatts, card.qtcWatts),
       };
     });
+    const { history, refreshing, refreshError } = await ensureFreshHistory(await readHistory());
     const now = Date.now();
-    const history = await readHistory();
     const fx = await resolveFx(history.fx, now);
     const rate = fx?.usdCny ?? null;
     const collectionStatus = history.collectionStatus;
@@ -69,7 +70,7 @@ export default async function handler(req, res) {
     });
     const updatedAt = Math.max(...Object.values(samples).flat().map((s) => s.ts), 0) || null;
     const sources = Object.fromEntries(['prl', 'qtc'].map((coin) => [coin, current[coin] ? { priceSource: current[coin].priceSource, source: current[coin].source, sourceName: current[coin].sourceName || (coin === 'prl' ? 'PearlSonar' : 'QTCScan') } : null]));
-    return res.setHeader('Cache-Control', 'no-store').status(200).json({ updatedAt, collectionStatus, settings, fx, sources, cards: cardsOut });
+    return res.setHeader('Cache-Control', 'no-store').status(200).json({ updatedAt, collectionStatus, refreshing, refreshError, settings, fx, sources, cards: cardsOut });
   } catch (error) {
     return res.status(503).json({ error: error?.message || '读取历史数据失败' });
   }

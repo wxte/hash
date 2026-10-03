@@ -71,7 +71,7 @@ function renderCards(data) {
 }
 async function loadData() {
   const query = new URLSearchParams({ electricityCnyKwh: settings.electricityCnyKwh, cards: JSON.stringify(settings.cards) });
-  $('refresh-label').textContent = '正在更新…'; $('refresh').disabled = true;
+  $('refresh-label').textContent = '正在读取 / 采集…'; $('refresh').disabled = true;
   try {
     const response = await fetch(`/api/stats?${query}`, { cache: 'no-store' });
     const data = await response.json(); if (!response.ok) throw new Error(data.error || '读取失败');
@@ -83,8 +83,8 @@ async function loadData() {
     const recent = !Object.keys(errors).length && data.cards.every((card) => card.coins.prl.current && card.coins.qtc.current);
     $('status-pill').textContent = recent ? '数据正常' : Object.keys(errors).length ? '采集异常' : data.updatedAt ? '采集延迟' : '等待采集'; $('status-pill').className = `status-pill ${recent ? 'good' : ''}`;
     $('updated').textContent = data.updatedAt ? `最近成功采集：${new Date(data.updatedAt).toLocaleString('zh-CN')}` : '尚无成功采集记录';
-    const errorHint = Object.entries({ ...errors, ...(!data.fx ? { fx: '汇率不可用' } : data.fx.stale ? { fx: '汇率采集延迟，沿用上次有效报价' } : {}) }).map(([coin, message]) => `${coin.toUpperCase()}：${message}`).join('；');
-    $('refresh-label').textContent = data.updatedAt ? `更新于 ${ago(data.updatedAt)}` : '等待首次采集';
+    const errorHint = Object.entries({ ...errors, ...(data.refreshError ? { refresh: data.refreshError } : {}), ...(!data.fx ? { fx: '汇率不可用' } : data.fx.stale ? { fx: '汇率采集延迟，沿用上次有效报价' } : {}) }).map(([coin, message]) => `${coin.toUpperCase()}：${message}`).join('；');
+    $('refresh-label').textContent = data.refreshing ? '后台补采中，稍后自动更新' : data.updatedAt ? `更新于 ${ago(data.updatedAt)}` : '等待首次采集';
     $('data-notice').hidden = !errorHint; $('data-notice').textContent = errorHint ? `采集异常：${errorHint}。失败样本未计入平均。` : '';
   } catch (error) {
     $('status-pill').textContent = '读取失败'; $('status-pill').className = 'status-pill'; $('refresh-label').textContent = '暂时无法连接';

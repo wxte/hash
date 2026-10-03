@@ -26,7 +26,7 @@
 
 默认使用网站专用 **Vercel Private Blob** 保存一个小型 JSON 历史文件；ETag 条件写入防止并发覆盖，首次采集自动初始化，不需要建表。也支持专用 Upstash Redis（设置 Redis 变量后会优先使用 Redis）。
 
-Vercel Hobby 原生 Cron 不支持每 10 分钟。因此本版本用 GitHub Actions 每小时的 03 / 13 / 23 / 33 / 43 / 53 分钟获取行情，再向受密钥保护的采集接口提交快照；网页无人访问也会保存数据。GitHub 定时任务可能排队或漏跑，覆盖时长会如实反映；公共仓库长期无活动时需重新启用工作流。参考 [Vercel Cron 限制](https://vercel.com/docs/cron-jobs/usage-and-pricing)、[GitHub schedule 说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
+Vercel Hobby 原生 Cron 不支持每 10 分钟。因此本版本用 GitHub Actions 每小时的 03 / 13 / 23 / 33 / 43 / 53 分钟获取行情，再向受密钥保护的采集接口提交快照；网页无人访问也会保存数据。GitHub 定时调度可能明显延迟；页面每分钟检查一次，任一币种快照超过 10 分钟时，读取接口会自动补采并保存，点击刷新也可触发。使用跨实例 90 秒采集锁及失败重试冷却，避免多人同时打开导致重复采集。失败不记零，页面显示错误；无人访问期间仍依赖后台定时任务，不保证严格 10 分钟间隔。GitHub 定时任务可能排队或漏跑，覆盖时长会如实反映；公共仓库长期无活动时需重新启用工作流。参考 [Vercel Cron 限制](https://vercel.com/docs/cron-jobs/usage-and-pricing)、[GitHub schedule 说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
 
 ## 从零部署：不需要本地装开发软件
 
