@@ -11,6 +11,7 @@ export default async function handler(req, res) {
   try {
     const settings = {
       electricityCnyKwh: n(req.query?.electricityCnyKwh, defaults.electricityCnyKwh),
+      platformWatts: n(req.query?.platformWatts, defaults.platformWatts),
       prlPoolFeePct: defaults.prlPoolFeePct,
       qtcPoolFeePct: defaults.qtcPoolFeePct,
     };
@@ -65,6 +66,18 @@ export default async function handler(req, res) {
           } : null,
           average, sampleCount: average.sampleCount, coverageHours: average.coverageHours,
         };
+        const platformElectricity = settings.platformWatts / 1000 * 24 * settings.electricityCnyKwh;
+        for (const period of ['current', 'average']) {
+          const item = coins[coin][period];
+          if (!item) continue;
+          item.rig8 = {
+            cardCount: 8,
+            totalWatts: card[`${coin}Watts`] * 8 + settings.platformWatts,
+            platformElectricityCnyDay: platformElectricity,
+            grossCnyDay: item.grossCnyDay == null ? null : item.grossCnyDay * 8,
+            netCnyDay: item.netCnyDay == null ? null : item.netCnyDay * 8 - platformElectricity,
+          };
+        }
       }
       return { ...card, coins };
     });

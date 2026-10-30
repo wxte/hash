@@ -16,6 +16,7 @@ function loadSettings() {
     const result = structuredClone(defaults);
     const valid = (value, fallback, max = Number.MAX_VALUE) => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= max ? value : fallback;
     result.electricityCnyKwh = valid(saved?.electricityCnyKwh, result.electricityCnyKwh);
+    result.platformWatts = valid(saved?.platformWatts, result.platformWatts);
     if (saved?.electricityCnyKwh == null && typeof saved?.electricityUsdKwh === 'number' && Number.isFinite(saved.electricityUsdKwh) && saved.electricityUsdKwh >= 0 && typeof saved?.usdCny === 'number' && Number.isFinite(saved.usdCny) && saved.usdCny > 0) result.electricityCnyKwh = saved.electricityUsdKwh * saved.usdCny;
     for (const card of CARD_DEFAULTS) for (const key of ['prlHash', 'qtcHash', 'prlWatts', 'qtcWatts']) result.cards[card.id][key] = valid(saved?.cards?.[card.id]?.[key], card[key]);
     result.presetVersion = saved?.presetVersion;
@@ -28,6 +29,7 @@ function saveSettings() { localStorage.setItem(KEY, JSON.stringify(settings)); }
 function showToast(message) { const toast = $('toast'); toast.textContent = message; toast.classList.add('show'); clearTimeout(timer); timer = setTimeout(() => toast.classList.remove('show'), 2200); }
 function fillSettings() {
   $('electricity').value = Number(settings.electricityCnyKwh.toFixed(6));
+  $('platform-watts').value = settings.platformWatts;
 }
 function ago(ts) { if (!ts) return '暂无样本'; const m = Math.max(0, Math.floor((Date.now() - ts) / 60000)); return m < 1 ? '刚刚' : `${m} 分钟前`; }
 function coverageText(data) {
@@ -48,7 +50,7 @@ function renderSummary(data) {
 }
 function profitCell(item, coin, avg) {
   if (!item) return '<span class="bad">数据暂不可用</span>';
-  return `<span class="profit-main ${avg ? 'avg-val' : ''}">毛 ${cny(item.grossCnyDay)} <span class="profit-sub">净 ${cny(item.netCnyDay)}</span></span>`;
+  return `<span class="profit-main ${avg ? 'avg-val' : ''}">单卡 毛 ${cny(item.grossCnyDay)} <span class="profit-sub">净 ${cny(item.netCnyDay)}</span></span><span class="profit-rig ${avg ? 'avg-val' : ''}">8卡 毛 ${cny(item.rig8?.grossCnyDay)}<span class="profit-sub">净 ${cny(item.rig8?.netCnyDay)}</span></span>`;
 }
 function renderCards(data) {
   const rows = data.cards.map((card) => {
@@ -70,7 +72,7 @@ function renderCards(data) {
   });
 }
 async function loadData() {
-  const query = new URLSearchParams({ electricityCnyKwh: settings.electricityCnyKwh, cards: JSON.stringify(settings.cards) });
+  const query = new URLSearchParams({ electricityCnyKwh: settings.electricityCnyKwh, platformWatts: settings.platformWatts, cards: JSON.stringify(settings.cards) });
   $('refresh-label').textContent = '正在读取 / 采集…'; $('refresh').disabled = true;
   try {
     const response = await fetch(`/api/stats?${query}`, { cache: 'no-store' });
@@ -93,6 +95,7 @@ async function loadData() {
 }
 fillSettings();
 $('electricity').addEventListener('change', () => { const value = Number($('electricity').value); if (!Number.isFinite(value) || value < 0) return showToast('请填写有效电价'); settings.electricityCnyKwh = value; saveSettings(); loadData(); });
+$('platform-watts').addEventListener('change', () => { const value = Number($('platform-watts').value); if (!Number.isFinite(value) || value < 0) return showToast('请填写有效平台功耗'); settings.platformWatts = value; saveSettings(); loadData(); });
 $('reset-settings').addEventListener('click', () => { settings = structuredClone(defaults); saveSettings(); fillSettings(); loadData(); showToast('已恢复默认设置'); });
 $('refresh').addEventListener('click', loadData);
 loadData(); setInterval(loadData, 60_000);
